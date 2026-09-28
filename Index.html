@@ -1,0 +1,525 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Alif Snake Game</title>
+
+<style>
+* {
+    box-sizing: border-box;
+}
+
+body {
+    margin: 0;
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: Arial, sans-serif;
+    background: #10131a;
+    color: white;
+}
+
+.game {
+    width: min(94vw, 520px);
+    text-align: center;
+    background: #191e28;
+    padding: 22px;
+    border-radius: 20px;
+    box-shadow: 0 15px 45px #0008;
+}
+
+h1 {
+    margin: 0 0 12px;
+    font-size: 32px;
+}
+
+.top {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+}
+
+.score {
+    font-size: 20px;
+    font-weight: bold;
+}
+
+button {
+    border: 0;
+    border-radius: 10px;
+    padding: 10px 16px;
+    background: #35d07f;
+    color: #07140d;
+    font-weight: bold;
+    cursor: pointer;
+    font-size: 15px;
+}
+
+canvas {
+    width: 100%;
+    aspect-ratio: 1 / 1;
+    background: #0b0f14;
+    border: 2px solid #2b3442;
+    border-radius: 12px;
+    display: block;
+}
+
+.msg {
+    min-height: 24px;
+    margin: 10px 0;
+    color: #b8c2d1;
+}
+
+.controls {
+    display: grid;
+    grid-template-columns: repeat(3, 65px);
+    gap: 8px;
+    justify-content: center;
+    margin-top: 12px;
+}
+
+.controls button {
+    background: #2b3442;
+    color: white;
+    font-size: 22px;
+    padding: 12px;
+}
+
+.empty {
+    visibility: hidden;
+}
+
+.small {
+    font-size: 12px;
+    color: #8792a3;
+    margin-top: 12px;
+}
+</style>
+</head>
+
+<body>
+
+<div class="game">
+
+    <h1>🐍 Alif Snake Game</h1>
+
+    <div class="top">
+        <div class="score">
+            Score: <span id="score">0</span>
+        </div>
+
+        <button id="restart">
+            Restart
+        </button>
+    </div>
+
+    <canvas id="game" width="420" height="420"></canvas>
+
+    <div class="msg" id="msg">
+        Press an arrow key to start!
+    </div>
+
+    <div class="controls">
+
+        <button class="empty">•</button>
+
+        <button data-dir="up">
+            ⬆️
+        </button>
+
+        <button class="empty">•</button>
+
+        <button data-dir="left">
+            ⬅️
+        </button>
+
+        <button data-dir="down">
+            ⬇️
+        </button>
+
+        <button data-dir="right">
+            ➡️
+        </button>
+
+    </div>
+
+    <div class="small">
+        Arrow keys / buttons to move • Eat 🍎 and grow!
+    </div>
+
+</div>
+
+<script>
+
+const canvas = document.getElementById("game");
+const ctx = canvas.getContext("2d");
+
+const scoreEl = document.getElementById("score");
+const msg = document.getElementById("msg");
+const restart = document.getElementById("restart");
+
+const size = 21;
+const cell = canvas.width / size;
+
+let snake;
+let food;
+let dir;
+let nextDir;
+let score;
+let running;
+let gameOver;
+let timer;
+
+
+/* RESET GAME */
+
+function reset() {
+
+    snake = [
+        {x: 10, y: 10},
+        {x: 9, y: 10},
+        {x: 8, y: 10}
+    ];
+
+    food = randomFood();
+
+    dir = {
+        x: 1,
+        y: 0
+    };
+
+    nextDir = {
+        x: 1,
+        y: 0
+    };
+
+    score = 0;
+    running = false;
+    gameOver = false;
+
+    scoreEl.textContent = score;
+
+    msg.textContent = "Press an arrow key to start!";
+
+    clearInterval(timer);
+
+    draw();
+}
+
+
+/* RANDOM FOOD */
+
+function randomFood() {
+
+    let f;
+
+    do {
+
+        f = {
+            x: Math.floor(Math.random() * size),
+            y: Math.floor(Math.random() * size)
+        };
+
+    }
+
+    while (
+        snake &&
+        snake.some(
+            s => s.x === f.x && s.y === f.y
+        )
+    );
+
+    return f;
+}
+
+
+/* CHANGE DIRECTION */
+
+function setDir(d) {
+
+    if (gameOver) {
+        reset();
+    }
+
+    if (
+        d.x !== -dir.x ||
+        d.y !== -dir.y
+    ) {
+
+        nextDir = d;
+    }
+
+    if (!running) {
+
+        running = true;
+
+        msg.textContent = "";
+
+        clearInterval(timer);
+
+        timer = setInterval(step, 105);
+    }
+}
+
+
+/* GAME LOOP */
+
+function step() {
+
+    dir = nextDir;
+
+    const head = {
+        x: snake[0].x + dir.x,
+        y: snake[0].y + dir.y
+    };
+
+
+    /* WALL / BODY COLLISION */
+
+    if (
+        head.x < 0 ||
+        head.x >= size ||
+        head.y < 0 ||
+        head.y >= size ||
+        snake.some(
+            s => s.x === head.x &&
+                 s.y === head.y
+        )
+    ) {
+
+        running = false;
+        gameOver = true;
+
+        clearInterval(timer);
+
+        msg.textContent =
+            "Game Over! Press Restart or an arrow key.";
+
+        draw();
+
+        return;
+    }
+
+
+    snake.unshift(head);
+
+
+    /* EAT FOOD */
+
+    if (
+        head.x === food.x &&
+        head.y === food.y
+    ) {
+
+        score++;
+
+        scoreEl.textContent = score;
+
+        food = randomFood();
+
+    } else {
+
+        snake.pop();
+    }
+
+
+    draw();
+}
+
+
+/* DRAW GAME */
+
+function draw() {
+
+    /* BACKGROUND */
+
+    ctx.fillStyle = "#0b0f14";
+
+    ctx.fillRect(
+        0,
+        0,
+        canvas.width,
+        canvas.height
+    );
+
+
+    /* GRID */
+
+    ctx.strokeStyle = "#151b23";
+    ctx.lineWidth = 1;
+
+    for (let i = 1; i < size; i++) {
+
+        ctx.beginPath();
+
+        ctx.moveTo(
+            i * cell,
+            0
+        );
+
+        ctx.lineTo(
+            i * cell,
+            canvas.height
+        );
+
+        ctx.stroke();
+
+
+        ctx.beginPath();
+
+        ctx.moveTo(
+            0,
+            i * cell
+        );
+
+        ctx.lineTo(
+            canvas.width,
+            i * cell
+        );
+
+        ctx.stroke();
+    }
+
+
+    /* FOOD */
+
+    ctx.fillStyle = "#ff4757";
+
+    ctx.beginPath();
+
+    ctx.arc(
+        food.x * cell + cell / 2,
+        food.y * cell + cell / 2,
+        cell * 0.35,
+        0,
+        Math.PI * 2
+    );
+
+    ctx.fill();
+
+
+    /* SNAKE */
+
+    snake.forEach((s, i) => {
+
+        ctx.fillStyle =
+            i === 0
+            ? "#35e887"
+            : "#20b968";
+
+        ctx.fillRect(
+            s.x * cell + 2,
+            s.y * cell + 2,
+            cell - 4,
+            cell - 4
+        );
+
+    });
+}
+
+
+/* KEYBOARD */
+
+document.addEventListener(
+    "keydown",
+    e => {
+
+        const map = {
+
+            ArrowUp: {
+                x: 0,
+                y: -1
+            },
+
+            ArrowDown: {
+                x: 0,
+                y: 1
+            },
+
+            ArrowLeft: {
+                x: -1,
+                y: 0
+            },
+
+            ArrowRight: {
+                x: 1,
+                y: 0
+            }
+
+        };
+
+
+        if (map[e.key]) {
+
+            e.preventDefault();
+
+            setDir(map[e.key]);
+        }
+
+    }
+);
+
+
+/* MOBILE BUTTONS */
+
+document
+.querySelectorAll("[data-dir]")
+.forEach(button => {
+
+    button.addEventListener(
+        "click",
+        () => {
+
+            const map = {
+
+                up: {
+                    x: 0,
+                    y: -1
+                },
+
+                down: {
+                    x: 0,
+                    y: 1
+                },
+
+                left: {
+                    x: -1,
+                    y: 0
+                },
+
+                right: {
+                    x: 1,
+                    y: 0
+                }
+
+            };
+
+            setDir(
+                map[button.dataset.dir]
+            );
+
+        }
+    );
+
+});
+
+
+/* RESTART */
+
+restart.addEventListener(
+    "click",
+    reset
+);
+
+
+/* START */
+
+reset();
+
+</script>
+
+</body>
+</html>
